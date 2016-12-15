@@ -1,0 +1,4 @@
+[root]
+name = "rustc-embed"
+version = "0.1.0"
+
