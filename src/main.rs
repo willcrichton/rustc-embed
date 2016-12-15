@@ -20,11 +20,12 @@ impl FileLoader for CompilerInput {
 
 #[allow(dead_code)]
 enum LinkType {
-    Sysroot,
+    ViaSysroot,
     Individually
 }
 
 static LINK_TYPE: LinkType = LinkType::Individually;
+static SYS_TRIPLE: &'static str = "x86_64-apple-darwin";
 static SYSROOT: &'static str =
     "/Users/will/.multirust/toolchains/nightly-x86_64-apple-darwin";
 
@@ -32,20 +33,22 @@ fn run_compiler(src: String) -> isize {
     let crate_name = "foobar";
 
     let linker_args = match LINK_TYPE {
-        LinkType::Sysroot => {
+        LinkType::ViaSysroot => {
             format!("--sysroot {}", SYSROOT)
         },
         LinkType::Individually => {
             let rustlib_path =
-                format!("{}/lib/rustlib/x86_64-apple-darwin/lib", SYSROOT);
+                format!("{}/lib/rustlib/{}/lib", SYSROOT, SYS_TRIPLE);
             let libs = vec!["std", "core"];
-            let libflags = libs.into_iter().map(|lib| {
-                let matches =
-                    glob(&format!("{}/lib{}-*", rustlib_path, lib)).expect("Invalid glob");
-                let path = matches.into_iter().next()
-                    .expect(&format!("Missing lib {}", lib))
-                    .expect("Invalid path");
-                format!("--extern {}={}", lib, path.display())})
+            let libflags = libs.into_iter()
+                .map(|lib| {
+                    let matches =
+                        glob(&format!("{}/lib{}-*", rustlib_path, lib))
+                        .expect("Invalid glob");
+                    let path = matches.into_iter().next()
+                        .expect(&format!("Missing lib {}", lib))
+                        .expect("Invalid path");
+                    format!("--extern {}={}", lib, path.display())})
                 .collect::<Vec<String>>()
                 .join(" ");
             format!("{} -L {}", libflags, rustlib_path)
@@ -55,8 +58,8 @@ fn run_compiler(src: String) -> isize {
     let args: Vec<String> =
         format!(
             "_ {} {} --crate-type dylib --cap-lints allow",
-            linker_args,
-            crate_name)
+            crate_name,
+            linker_args)
         .split(' ').map(|s| s.to_string()).collect();
 
     rustc_driver::run(
