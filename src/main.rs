@@ -1,12 +1,12 @@
 #![feature(rustc_private, box_syntax)]
 
+extern crate rustc;
 extern crate rustc_driver;
 extern crate syntax;
 extern crate glob;
 
 use std::path::{PathBuf, Path};
 use std::io;
-use std::process;
 use syntax::codemap::FileLoader;
 use glob::glob;
 
@@ -28,7 +28,7 @@ static LINK_TYPE: LinkType = LinkType::Individually;
 static SYSROOT: &'static str =
     "/Users/will/.multirust/toolchains/nightly-x86_64-apple-darwin";
 
-fn run_compiler(src: String) {
+fn run_compiler(src: String) -> isize {
     let crate_name = "foobar";
 
     let linker_args = match LINK_TYPE {
@@ -59,15 +59,13 @@ fn run_compiler(src: String) {
             crate_name)
         .split(' ').map(|s| s.to_string()).collect();
 
-    let result = rustc_driver::run(
+    rustc_driver::run(
         move ||
             rustc_driver::run_compiler(
                 &args,
                 &mut rustc_driver::RustcDefaultCalls,
                 Some(box CompilerInput(src)),
-                None));
-
-    process::exit(result as i32);
+                None))
 }
 
 fn main() {
@@ -76,5 +74,9 @@ fn main() {
 pub fn foobar(){
     println!("foobar");
 }"#;
-    run_compiler(src.to_string());
+
+    match run_compiler(src.to_string()) {
+        0 => (),
+        n => panic!("Compilation failed with error code {}", n)
+    };
 }
